@@ -1,27 +1,30 @@
-# lucky-hub 唯一的 workflow：抓取开奖数据 → 提交 → 构建静态站 → 部署 GitHub Pages。
-# 四件事必须在同一个 job 内串行完成：GITHUB_TOKEN 推送的提交不会再触发下游 workflow。
+# lucky-hub 唯一的 workflow：构建静态站 → 部署 GitHub Pages。
+# 抓取已经搬到本地（npm run dev 的「立即抓取」按钮），这里只负责构建与发布。
 name: deploy
 
-# 只有两种触发：定时（GitHub cron 用 UTC，北京时间 = UTC+8）和网页手动触发。
-# 刻意不加 push 触发：改完代码推上来不会立即上线，避免改一半就发布。
+# 两种触发：
+#   push             → 本地提交后自动上线（数据、文案、样式都算）
+#   workflow_dispatch → 网页手动重跑
+# 原本的 cron 定时抓取已移除：福彩官网对 GitHub 海外 IP 返回 403，跑了只会多一条失败记录。
 on:
-  schedule:
-    - cron: '50 13 * * *' # 北京 21:50
-    - cron: '30 15 * * *' # 北京 23:30
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # 同一时刻只允许一条流水线在跑，后来的排队而不是取消前一条。
-# cancel-in-progress 必须为 false：否则新任务会打断正在 push 数据的旧任务，可能留下半写状态。
+# cancel-in-progress: false —— 连推两次时让后一次等前一次跑完，避免部署产物互相覆盖。
 concurrency:
   group: lucky-pipeline
   cancel-in-progress: false
 
 # 最小权限，缺一不可：
-#   contents: write  → Commit data 步骤要 git push 数据回仓库
+#   contents: read   → checkout 要拉代码。一旦写了 permissions，未列出的权限会变成 none，
+#                      所以这条不能省，省了 checkout 直接失败。
 #   pages: write     → deploy-pages 发布产物
 #   id-token: write  → deploy-pages 走 OIDC 认证，缺这条会直接报错
+# 本 workflow 不再修改仓库内容，因此不需要 contents: write。
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -33,12 +36,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # 1. 取代码。token 优先 DATA_PUSH_TOKEN（PAT），未配置时自动退回 GITHUB_TOKEN —— 两者都能 push。
-      #    本项目其实不配 PAT 也能跑：每周 3 次开奖都会产生数据提交，仓库不会 60 天无活动被停用。
-      #    默认 fetch-depth: 1（浅克隆）足够：只提交 data/，不需要完整历史。
+      # 1. 取代码。默认 fetch-depth: 1（浅克隆）足够，构建不依赖 git 历史。
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.DATA_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
 
       # 2. Node 20 + npm 缓存。cache: npm 依赖仓库根目录的 package-lock.json。
       - uses: actions/setup-node@v4
@@ -48,36 +47,12 @@ jobs:
 
       # 3. 按 lock 文件精确安装（.npmrc 的 legacy-peer-deps=true 是必需的，别删）。
       - run: npm ci
-      # 4. 测试门禁：任一失败即中止整条流水线，坏数据不会进仓库、坏代码不会上线。
+      # 4. 测试门禁：任一失败即中止整条流水线，坏数据不会上线。
       #    两个命令是分开的：npm test 跑 .mjs 脚本测试，test:lib 用 tsx 跑 .ts 测试。
       - run: npm test
       - run: npm run test:lib
 
-      # 5. 抓取：第 1 页增量 → 按期号合并去重 → 校验 → 写 data/*.json。
-      #    脚本内部有「无新增期号则一个字节都不写」的保护，所以正常日子不会产生空提交。
-      #    continue-on-error：福彩官网对 GitHub 海外 IP 不稳定（本次实测 8 秒内 4 次重试全部失败），
-      #    抓不到时不能让整条发布卡死 —— 用仓库里已有的数据继续构建，站点照常上线。
-      #    失败原因会写进 data/health.json，由 /about 页面显示「最近一次抓取失败」。
-      - name: Fetch draws
-        continue-on-error: true
-        run: npm run fetch
-
-      # 6. 只有 data/ 真的变了才提交推送。
-      #    exit 0 只结束「本步骤」，后面的 Build 与部署照常执行 —— 这是有意为之：
-      #    没有新开奖时也要把代码改动发布出去，站点才能保持最新。
-      - name: Commit data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then
-            echo "数据无变化，跳过提交"
-            exit 0
-          fi
-          git commit -m "chore(data): refresh $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git push
-
-      # 7. 构建静态站（build 前会先跑 sync-data，把 data/ 复制到 public/data/）。
+      # 5. 构建静态站（build 前会先跑 sync-data，把 data/ 复制到 public/data/）。
       #    CI=true 让 astro.config.mjs 把 base 切成 /lucky-hub/：
       #    仓库名必须也叫 lucky-hub，否则 CSS/JS 全部 404，页面变纯文字。
       #    （Actions 默认就注入 CI=true，这里显式写出是为了让意图可读，不是必需项。）
@@ -86,11 +61,11 @@ jobs:
           CI: 'true'
         run: npm run build
 
-      # 8. 把 dist/ 打包成 Pages 部署产物（产物名固定为 github-pages）。
+      # 6. 把 dist/ 打包成 Pages 部署产物（产物名固定为 github-pages）。
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      # 9. 发布到 Pages。失败时线上仍是上一个版本，不会出现半截站点。
+      # 7. 发布到 Pages。失败时线上仍是上一个版本，不会出现半截站点。
       - id: deployment
         uses: actions/deploy-pages@v4

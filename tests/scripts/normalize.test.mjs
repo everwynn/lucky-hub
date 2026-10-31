@@ -31,3 +31,15 @@ test('mergeDraws 按期号去重、升序、远端覆盖', () => {
   assert.deepEqual(got[1].red, [3, 11, 17, 22, 23, 29]);
   assert.equal(got.length, 3);
 });
+
+test('mergeDraws 重复合并同一批数据不会变长（重复抓取安全）', () => {
+  const draws = [
+    { code: '2026123', date: '2026-10-27', red: [1, 2, 3, 4, 5, 6], blue: 1 },
+    { code: '2026124', date: '2026-10-29', red: [3, 11, 17, 22, 23, 29], blue: 9 },
+  ];
+  const once = mergeDraws(draws, draws);
+  const twice = mergeDraws(once, draws);
+  assert.equal(once.length, 2);
+  assert.equal(twice.length, 2);
+  assert.deepEqual(twice, once);
+});

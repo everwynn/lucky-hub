@@ -1,0 +1,56 @@
+---
+// 本地抓取面板：只在 npm run dev 时由 about.astro 条件渲染。
+// 接口由 astro.config.mjs 的 astro:server:setup 中间件提供，构建产物里这两者都不存在。
+---
+<section class="panel mt-4 border-dashed">
+  <h2 class="text-sm font-semibold">本地抓取（仅开发环境）</h2>
+  <p class="mt-1 text-xs leading-6 text-muted">
+    线上站点没有这个按钮：福彩官网不返回 CORS 头，浏览器无法直连，只有本地 Node 能代抓。
+  </p>
+  <button id="local-fetch-btn" type="button" class="btn-primary mt-3 w-full sm:w-auto">立即抓取</button>
+  <p id="local-fetch-msg" class="mt-2 min-h-4 text-xs text-muted" role="status" aria-live="polite"></p>
+</section>
+
+<script is:inline>
+  (function () {
+    var btn = document.getElementById('local-fetch-btn');
+    var msg = document.getElementById('local-fetch-msg');
+    if (!btn || !msg) return;
+
+    // 三个类名写成字面量，Tailwind 才能扫到
+    var IDLE = 'mt-2 min-h-4 text-xs text-muted';
+    var OK = 'mt-2 min-h-4 text-xs text-emerald-500';
+    var BAD = 'mt-2 min-h-4 text-xs text-lucky-red';
+
+    function show(text, className) {
+      msg.textContent = text;
+      msg.className = className;
+    }
+
+    btn.addEventListener('click', async function () {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      show('抓取中…（补历史时可能要 1 分钟）', IDLE);
+
+      try {
+        var res = await fetch('/api/local/fetch', { method: 'POST' });
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error((data && data.message) || 'HTTP ' + res.status);
+
+        show(
+          data.added > 0
+            ? '已新增 ' + data.added + ' 期，共 ' + data.total + ' 期（最新 ' + data.lastCode + '），即将刷新…'
+            : '已是最新：' + data.lastCode + ' 期，共 ' + data.total + ' 期，无新增',
+          OK,
+        );
+        // 无论有没有新增都刷新一次：抓取成功会把 health 状态改回 ok，页面要跟着更新
+        setTimeout(function () {
+          window.location.reload();
+        }, 1200);
+      } catch (error) {
+        show('抓取失败：' + (error && error.message ? error.message : '未知错误'), BAD);
+        btn.disabled = false;
+      }
+    });
+  })();
+</script>
