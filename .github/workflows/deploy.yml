@@ -55,8 +55,11 @@ jobs:
 
       # 5. 抓取：第 1 页增量 → 按期号合并去重 → 校验 → 写 data/*.json。
       #    脚本内部有「无新增期号则一个字节都不写」的保护，所以正常日子不会产生空提交。
-      #    本步骤失败会直接中止 job：不提交、不部署，线上保持上一个可用版本。
+      #    continue-on-error：福彩官网对 GitHub 海外 IP 不稳定（本次实测 8 秒内 4 次重试全部失败），
+      #    抓不到时不能让整条发布卡死 —— 用仓库里已有的数据继续构建，站点照常上线。
+      #    失败原因会写进 data/health.json，由 /about 页面显示「最近一次抓取失败」。
       - name: Fetch draws
+        continue-on-error: true
         run: npm run fetch
 
       # 6. 只有 data/ 真的变了才提交推送。
