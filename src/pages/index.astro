@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadDraws, loadMeta, loadHealth } from '../lib/data';
+import { formatDraw, toShanghai } from '../lib/format';
+
+const draws = loadDraws();
+if (draws.length === 0) throw new Error('data/draws.json 为空，请先执行 npm run backfill');
+const meta = loadMeta();
+const health = loadHealth();
+const latest = draws[draws.length - 1];
+const recent = [...draws].slice(-30).reverse();
+const withBase = (p: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}${p}`;
+---
+<BaseLayout title="首页">
+  {health?.status === 'error' && (
+    <p class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+      最近一次抓取失败：{health.message ?? '未知原因'}（页面数据仍为上一次成功结果）
+    </p>
+  )}
+
+  <section class="panel">
+    <p class="text-xs text-muted">最新一期</p>
+    <p class="mt-1 text-lg font-semibold">第 {latest.code} 期 · {latest.date}</p>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {latest.red.map((n) => <span class="ball ball-red" aria-label={`红球 ${n}`}>{String(n).padStart(2, '0')}</span>)}
+      <span class="ball ball-blue" aria-label={`蓝球 ${latest.blue}`}>{String(latest.blue).padStart(2, '0')}</span>
+    </div>
+    <p class="mt-3 text-xs text-muted">
+      数据截止 {meta.lastCode} 期 · 共 {meta.total} 期 · 更新于 {toShanghai(meta.updatedAt)}
+    </p>
+    <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+      <a class="btn-primary w-full sm:w-auto" href={withBase('/generate')}>生成号码</a>
+      <a class="btn-secondary w-full sm:w-auto" href={withBase('/about')}>关于本站</a>
+    </div>
+  </section>
+
+  <section class="mt-6">
+    <h2 class="mb-2 text-sm font-semibold text-body">最近 30 期</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="text-xs text-muted">
+          <tr><th class="py-2">期号</th><th class="py-2">开奖日期</th><th class="py-2">号码</th></tr>
+        </thead>
+        <tbody class="divide-y divide-line">
+          {recent.map((d) => (
+            <tr>
+              <td class="py-2 tabular-nums">{d.code}</td>
+              <td class="py-2 text-muted">{d.date}</td>
+              <td class="py-2 font-mono text-xs">{formatDraw(d)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="页面不存在">
+  <h1 class="text-2xl font-bold">404</h1>
+  <p class="mt-2 text-muted">这个页面不存在。</p>
+  <a class="mt-4 inline-block text-lucky-red" href={import.meta.env.BASE_URL}>返回首页</a>
+</BaseLayout>

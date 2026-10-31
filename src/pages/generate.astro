@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Generator from '../components/Generator.vue';
+---
+<BaseLayout title="生成号码">
+  <h1 class="text-xl font-bold">生成一注</h1>
+  <p class="mt-1 text-xs text-muted">6 个红球（1-33）+ 1 个蓝球（1-16）</p>
+  <div class="mt-4">
+    <Generator client:load />
+  </div>
+</BaseLayout>

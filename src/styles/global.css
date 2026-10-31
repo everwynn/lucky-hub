@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   主题变量
+   只在这里改色值；组件里写的是语义类（bg-surface / text-muted …）。
+   亮色为 :root 默认值，html.dark 覆盖 —— 切换主题只需给 <html> 加/去 dark 类。
+   变量用 "R G B" 三元组，配合 tailwind.config 的 <alpha-value> 支持 /85 这类透明度。
+   ============================================================ */
+:root {
+  --c-surface: 246 247 249; /* 页面底色 */
+  --c-panel: 255 255 255; /* 卡片 */
+  --c-body: 30 41 59; /* 正文 */
+  --c-muted: 100 116 139; /* 次要文字（在 surface 上对比度约 4.7:1） */
+  --c-line: 226 232 240; /* 分割线 / 描边 */
+  --c-sunken: 241 245 249; /* 凹陷区：分段控件底、输入框 */
+  --c-elevated: 255 255 255; /* 凸起区：选中项 */
+  --c-ball-shadow: rgba(15, 23, 42, 0.18);
+  color-scheme: light;
+}
+
+html.dark {
+  --c-surface: 15 17 21;
+  --c-panel: 23 26 33;
+  --c-body: 226 232 240;
+  --c-muted: 148 163 184;
+  --c-line: 42 46 56;
+  --c-sunken: 10 12 16;
+  --c-elevated: 38 43 54;
+  --c-ball-shadow: rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface text-body antialiased;
+}
+
+/* ============================================================
+   主题切换：从按钮位置向外扩散的圆形揭示
+   起点 --theme-x / --theme-y 由 ThemeToggle.astro 在点击时写入。
+   时长 720ms：pulse-hub 用 420ms，这里放慢约 70%，扩散更从容。
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  animation: theme-reveal 720ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0% at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+  to {
+    clip-path: circle(160% at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   主题按钮：三个图标叠放，按当前模式只显示一个
+   ============================================================ */
+.theme-icon {
+  position: absolute;
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0;
+  transform: scale(0.6) rotate(-45deg);
+  transition:
+    opacity 160ms ease,
+    transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme-mode='light'] .theme-icon-sun,
+html[data-theme-mode='dark'] .theme-icon-moon,
+html[data-theme-mode='system'] .theme-icon-system,
+html:not([data-theme-mode]) .theme-icon-system {
+  opacity: 1;
+  transform: none;
+}
+
+/* ============================================================
+   自定义组件类
+   必须放在 components 层：放在层外会变成普通 CSS，优先级高于 utilities 层，
+   导致调用处写的 h-11 / min-h-14 这类工具类失效。
+   ============================================================ */
+@layer components {
+  /* 手机 36px（7 个球能挤进一行），>=sm 40px */
+  .ball {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold tabular-nums sm:h-10 sm:w-10 sm:text-base;
+  }
+  .ball-red {
+    @apply bg-lucky-red text-white;
+    box-shadow: inset 0 -2px 6px var(--c-ball-shadow);
+  }
+  .ball-blue {
+    @apply bg-lucky-blue text-white;
+    box-shadow: inset 0 -2px 6px var(--c-ball-shadow);
+  }
+  .panel {
+    @apply rounded-xl border border-line bg-panel p-4;
+  }
+
+  /* 主操作按钮：红色渐变 + 投影，只在关键动作上使用 */
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-b from-[#e23737] to-[#c02020] px-4 text-base font-semibold text-white shadow-lg shadow-red-900/30 transition active:scale-[0.985] active:brightness-95;
+  }
+  /* 次要按钮：中性描边 */
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-line px-3 text-sm text-muted transition hover:border-body hover:text-body active:scale-[0.985];
+  }
+}

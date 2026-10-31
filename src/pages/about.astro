@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadHealth, loadMeta } from '../lib/data';
+import { toShanghai } from '../lib/format';
+
+const meta = loadMeta();
+const health = loadHealth();
+---
+<BaseLayout title="关于">
+  <h1 class="text-2xl font-bold">关于 lucky-hub</h1>
+  <div class="panel mt-4 space-y-2 text-sm text-body">
+    <p>数据来源：中国福利彩票官网公开开奖接口（双色球）。</p>
+    <p>更新机制：GitHub Actions 每日两次（北京时间 21:50、23:30）抓取，无变化不提交。</p>
+    <p>数据截止：第 {meta.lastCode} 期（{meta.lastDate}），共 {meta.total} 期，抓取于 {toShanghai(meta.updatedAt)}。</p>
+    <p>最近一次抓取状态：{health?.status === 'ok' ? '成功' : `失败（${health?.message ?? '未知'}）`}</p>
+    <p>选号方式：纯随机（每注概率相同），或加权（统计窗口内出现次数越多的号被选中几率越大）。加权可选近 30 期、近 100 期、全部历史三档，均在生成页切换。</p>
+    <p>窗口越短越偏向近期热门号，但偏离只是噪声的放大；三档的中奖概率与纯随机完全相同。</p>
+  </div>
+  <p class="mt-4 text-xs leading-6 text-muted">
+    本站仅供个人娱乐与技术练习，不构成任何投注建议。请理性购彩，未成年人不得购买彩票。
+  </p>
+</BaseLayout>
