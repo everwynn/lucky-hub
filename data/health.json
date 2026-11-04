@@ -1,6 +1,8 @@
 {
-  "status": "error",
-  "lastRunAt": "2026-10-31T12:46:38.924Z",
-  "lastSuccessAt": "2026-10-29T17:51:29.169Z",
-  "message": "HTTP 403 Forbidden"
+  "status": "ok",
+  "lastRunAt": "2026-11-04T00:00:45.472Z",
+  "lastSuccessAt": "2026-11-04T00:00:45.472Z",
+  "added": 2,
+  "total": 2084,
+  "previousMessage": "HTTP 403 Forbidden"
 }
