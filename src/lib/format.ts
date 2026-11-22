@@ -1,9 +1,7 @@
-export interface Draw {
-  code: string;
-  date: string;
-  red: number[];
-  blue: number;
-}
+import type { Draw } from './types';
+
+// Draw 的唯一定义在 types.ts，这里保留 re-export 是为了让既有 import 路径继续可用
+export type { Draw };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 

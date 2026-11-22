@@ -1,12 +1,12 @@
 # lucky-hub
 
-一个个人使用的**福彩双色球**开奖数据站：展示最新开奖、查看最近 30 期、生成号码并收藏守号。
+一个个人使用的**福彩双色球**开奖数据站：展示最新开奖、查看最近 30 期、数据统计、生成号码并收藏守号。
 
 纯静态、零后端——开奖数据在构建前就存成 JSON，页面打开即用，所有统计与选号都在浏览器本地完成。
 
 **在线访问：<https://everwynn.github.io/lucky-hub/>**
 
-> 当前数据：第 **2026124** 期（2026-10-29），共 **2082** 期，覆盖 2013001 → 2026124。
+> 当前数据：第 **2026133** 期（2026-11-19），共 **2091** 期，覆盖 2013001 → 2026133。
 >
 > **更新方式**：福彩官网对 GitHub 的海外 IP 返回 `HTTP 403`，云端抓取不可用。
 > 数据在本地抓取（`npm run dev` 的「立即抓取」按钮）后提交推送，由 Actions 自动构建发布，
@@ -18,8 +18,9 @@
 
 | 页面 | 内容 |
 |---|---|
-| 首页 `/` | 最新一期大号彩球、最近 30 期表格、数据截止期号与更新时间；抓取失败时顶部显示黄色提示条 |
+| 首页 `/` | 最新一期大号彩球、最近 30 期表格、数据截止期号与更新时间；抓取失败时顶部显示黄色提示条，数据超过 4 天未更新时同样提示（天数在浏览器端计算，不依赖构建时间） |
 | 生成号码 `/generate` | 两种模式选号、三档统计窗口、守号收藏、一键复制 |
+| 统计 `/analysis` | 红/蓝球频次、遗漏值、和值分布、奇偶/大小/三区组合、连号与上期重号/邻号分布、最近 30 期走势图（悬停整行整列高亮）；窗口可切近 30 / 近 100 / 全部，每块都标注理论期望或口径说明 |
 | 关于 `/about` | 数据来源、更新机制、最近一次抓取状态、免责声明；`npm run dev` 下额外显示「立即抓取」按钮 |
 
 其他细节：
@@ -109,6 +110,7 @@ https://…/lucky-hub/data/draws.json
 |---|---|---|
 | `scripts/fetch.mjs` | 取数、归一化、合并、校验、写盘 | 不做任何统计计算 |
 | `src/lib/generate.ts` | 纯函数选号算法 | 不读文件、不碰 DOM |
+| `src/lib/stats.ts` | 纯函数统计（频次/遗漏/和值/形态/连号） | 不读文件、不碰 DOM |
 | `src/lib/data.ts` | 构建期读 `data/*.json` | 不做计算 |
 | `src/components/` | 展示与交互 | 不含算法逻辑 |
 
@@ -131,15 +133,15 @@ lucky-hub/
 │  ├─ sync-data.mjs               data/ → public/data/
 │  └─ lib/{http,pages}.mjs        带重试的 HTTP 封装 / 翻页收集器
 ├─ src/
-│  ├─ components/{Generator.vue,ThemeToggle.astro,LocalFetchPanel.astro}
-│  │                              Generator 是唯一 island；LocalFetchPanel 仅 dev 渲染
+│  ├─ components/{Generator.vue,Analysis.vue,FreqBars.vue,DistChart.vue,OmissionTable.vue,TrendGrid.vue,ThemeToggle.astro,LocalFetchPanel.astro}
+│  │                              Generator、Analysis 是 island；LocalFetchPanel 仅 dev 渲染
 │  ├─ layouts/BaseLayout.astro
-│  ├─ lib/{data,format,generate,loadDraws}.ts
-│  ├─ pages/{index,generate,about,404}.astro、robots.txt.ts
+│  ├─ lib/{data,format,generate,loadDraws,stats,types}.ts
+│  ├─ pages/{index,generate,analysis,about,404}.astro、robots.txt.ts
 │  └─ styles/global.css
 ├─ tests/
 │  ├─ scripts/*.test.mjs          数据管道测试
-│  └─ lib/*.test.ts               格式化与选号测试
+│  └─ lib/*.test.ts               格式化、选号与统计测试
 └─ astro.config.mjs（含 dev-only 抓取接口）/ tailwind.config.mjs / tsconfig.json
 ```
 
@@ -263,7 +265,6 @@ permissions:
 
 - **没有云端自动抓取**：官网对 GitHub 的海外 IP 返回 403，数据只能本地更新；抓取接口只存在于 `npm run dev`，`preview` 与线上都没有
 - **noindex 不等于访问控制**：搜索引擎不会收录，但拿到链接的人仍可访问。若要真鉴权，需挂自定义域名 + Cloudflare Access，与应用代码无关
-- **Node 20 已过维护期**：workflow 里 `node-version: 20` 仍可运行，后续建议升到 22 LTS
 - 设计与实施记录保存在本地 `docs/`，未纳入版本库（已在 `.gitignore` 中）
 
 ---

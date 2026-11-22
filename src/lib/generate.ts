@@ -1,9 +1,7 @@
-export interface Draw {
-  code: string;
-  date: string;
-  red: number[];
-  blue: number;
-}
+import type { Draw } from './types';
+
+// Draw 的唯一定义在 types.ts，这里保留 re-export 是为了让既有 import 路径继续可用
+export type { Draw };
 
 export type Mode = 'weighted' | 'uniform';
 
@@ -45,6 +43,22 @@ export const BLUE_COUNT = 1;
 
 const RED_POOL: number[] = Array.from({ length: RED_MAX }, (_, i) => i + 1);
 const BLUE_POOL: number[] = Array.from({ length: BLUE_MAX }, (_, i) => i + 1);
+
+/**
+ * 默认随机源：crypto.getRandomValues（密码学随机），拿不到时回退 Math.random。
+ * 生成号码属于“不可预测性有实际意义”的场景，不应该用可被还原状态的 PRNG；
+ * 常量池只有 33/16 个元素，这点开销可以忽略。
+ * 测试一律显式传入 rand（mulberry32），不走这条默认路径。
+ */
+function defaultRandom(): number {
+  const c = globalThis.crypto;
+  if (c && typeof c.getRandomValues === 'function') {
+    const buf = new Uint32Array(1);
+    c.getRandomValues(buf);
+    return buf[0] / 4294967296;
+  }
+  return Math.random();
+}
 
 /** 从池子里不放回地抽 k 个，每次抽中概率正比于 weightOf(n) */
 function pickWeighted(
@@ -116,7 +130,7 @@ export function generateTicket(
   draws: Draw[],
   opts: { mode: Mode; window?: WindowMode; rand?: () => number } = { mode: 'uniform' },
 ): GeneratedTicket {
-  const { mode, window = DEFAULT_WINDOW, rand = Math.random } = opts;
+  const { mode, window = DEFAULT_WINDOW, rand = defaultRandom } = opts;
   const { red: redCounts } = countRecent(draws, window);
 
   const red =

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Draw } from './format';
+import type { Draw } from './types';
 
 export interface Meta {
   firstCode: string;

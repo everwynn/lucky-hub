@@ -39,10 +39,11 @@ jobs:
       # 1. 取代码。默认 fetch-depth: 1（浅克隆）足够，构建不依赖 git 历史。
       - uses: actions/checkout@v4
 
-      # 2. Node 20 + npm 缓存。cache: npm 依赖仓库根目录的 package-lock.json。
+      # 2. Node 22 LTS + npm 缓存。cache: npm 依赖仓库根目录的 package-lock.json。
+      #    本地要求 Node >= 20.6，22 同时满足且仍在维护期内。
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # 3. 按 lock 文件精确安装（.npmrc 的 legacy-peer-deps=true 是必需的，别删）。

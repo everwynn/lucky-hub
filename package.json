@@ -13,7 +13,7 @@
     "fetch": "node scripts/fetch.mjs",
     "backfill": "node scripts/backfill.mjs",
     "test": "node --test tests/scripts/",
-    "test:lib": "node --import tsx --test tests/lib/data.test.ts tests/lib/generate.test.ts"
+    "test:lib": "node --import tsx --test tests/lib/data.test.ts tests/lib/generate.test.ts tests/lib/stats.test.ts"
   },
   "dependencies": {
     "@astrojs/tailwind": "^5.1.5",

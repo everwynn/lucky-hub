@@ -1,4 +1,4 @@
-import type { Draw } from './generate';
+import type { Draw } from './types';
 
 /** 从站点根路径拉取全量开奖数据（构建时由 sync-data 复制到 public/data/） */
 export async function loadDraws(): Promise<Draw[]> {

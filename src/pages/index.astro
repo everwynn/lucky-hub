@@ -10,12 +10,29 @@ const health = loadHealth();
 const latest = draws[draws.length - 1];
 const recent = [...draws].slice(-30).reverse();
 const withBase = (p: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}${p}`;
+
+/**
+ * 数据新鲜度阈值（天）。双色球每周二/四/日开奖，最长间隔 3 天，达到 4 天即至少漏一期。
+ * 真正的判断在浏览器里做：构建时间不等于访问时间，构建期算出的天数会随站点变旧而失真。
+ */
+const STALE_DAYS = 4;
 ---
 <BaseLayout title="首页">
   {health?.status === 'error' && (
     <p class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
       最近一次抓取失败：{health.message ?? '未知原因'}（页面数据仍为上一次成功结果）
     </p>
+  )}
+
+  {/* 抓取失败已有黄条时不重复提示；数据陈旧但抓取成功时，这条是唯一能提醒补齐的入口 */}
+  {health?.status !== 'error' && (
+    <p
+      id="stale-notice"
+      data-last-date={meta.lastDate}
+      data-stale-days={STALE_DAYS}
+      hidden
+      class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300"
+    ></p>
   )}
 
   <section class="panel">
@@ -54,3 +71,26 @@ const withBase = (p: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}$
     </div>
   </section>
 </BaseLayout>
+
+<script is:inline>
+  // 数据新鲜度：静态站的“今天”只能是访问时刻，因此天数差必须在前端计算。
+  (function () {
+    var el = document.getElementById('stale-notice');
+    if (!el) return;
+    var last = el.getAttribute('data-last-date') || '';
+    var parts = last.split('-');
+    if (parts.length !== 3) return;
+    var then = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (Number.isNaN(then)) return;
+    // 先偏移到北京时间再取日期分量，否则北京 0:00-8:00 之间会把天数算少一天
+    var bj = new Date(Date.now() + 8 * 3600 * 1000);
+    var today = Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate());
+    var days = Math.round((today - then) / 86400000);
+    var limit = Number(el.getAttribute('data-stale-days')) || 4;
+    if (days < limit) return;
+    el.textContent =
+      '数据已 ' + days + ' 天未更新（截止 ' + last +
+      '）。双色球每周二/四/日开奖，可能漏了最新一期：运行 npm run dev 后在「关于」页点「立即抓取」补齐。';
+    el.hidden = false;
+  })();
+</script>
