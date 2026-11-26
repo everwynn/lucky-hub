@@ -12,7 +12,7 @@
     "preview": "astro preview",
     "fetch": "node scripts/fetch.mjs",
     "backfill": "node scripts/backfill.mjs",
-    "test": "node --test tests/scripts/",
+    "test": "node --test tests/scripts/fetch.test.mjs tests/scripts/normalize.test.mjs tests/scripts/pages.test.mjs tests/scripts/validate.test.mjs",
     "test:lib": "node --import tsx --test tests/lib/data.test.ts tests/lib/generate.test.ts tests/lib/stats.test.ts"
   },
   "dependencies": {
