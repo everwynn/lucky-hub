@@ -124,6 +124,14 @@ const zoneOthers = computed(() =>
 const omissions = computed(() => omissionStats(draws.value));
 const recent30 = computed(() => draws.value.slice(-30));
 
+/**
+ * 只负责开弹窗。全屏请求放在 TrendZoom 挂载时发，因为要全屏的元素就是弹窗自己，
+ * 点击的那一刻它还没被渲染出来。
+ */
+function openZoom() {
+  zoomOpen.value = true;
+}
+
 /** 切换窗口只重算本地数据，不重新请求；URL 用 replaceState，不往历史栈塞记录 */
 function setWindow(next: WindowMode) {
   windowMode.value = next;
@@ -258,7 +266,7 @@ const windowLabel = (w: WindowMode) => (w === 'all' ? '全部历史' : `近 ${w}
         caption="遗漏 30 期不等于“快出了”。每期独立随机，下期 6 个红球中含该号的概率仍是 6/33 ≈ 18%（蓝球 1/16 ≈ 6%）。"
       />
 
-      <TrendGrid :draws="recent30" @zoom="zoomOpen = true" />
+      <TrendGrid :draws="recent30" @zoom="openZoom" />
       <TrendZoom v-if="zoomOpen" :draws="recent30" @close="zoomOpen = false" />
     </template>
   </div>

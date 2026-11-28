@@ -119,3 +119,35 @@ html:not([data-theme-mode]) .theme-icon-system {
     @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-line px-3 text-sm text-muted transition hover:border-body hover:text-body active:scale-[0.985];
   }
 }
+
+/* ============================================================
+   走势图放大弹窗：竖屏触屏设备直接按横屏尺寸排版，再整体转 90°
+
+   Fullscreen + ScreenOrientation 实际只有 Android Chrome 可用，
+   iOS Safari 两个 API 都没有，不少国产内核也会拒掉全屏请求。
+   与其等 API，不如先把内容按横屏排好：用户把手机横过来，
+   画面正好转正，51 列一屏铺满，不用再左右滑。
+
+   写在 @layer 之外：同优先级下未分层规则会覆盖 Tailwind 工具类，
+   这样 w-full / max-h-[94vh] / h-full 都会让位给这里的尺寸。
+   ============================================================ */
+@media (orientation: portrait) and (pointer: coarse) {
+  .zoom-rotate {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    /* 前一行给不支持 dvh 的旧内核兜底 */
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    height: 100dvw;
+    max-width: none;
+    max-height: none;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+
+  /* 同一时间点，提示用户把设备转过来；转成横屏后媒体查询失效，提示自动消失 */
+  .zoom-tip {
+    display: block;
+  }
+}

@@ -2,22 +2,24 @@
 /**
  * 走势图放大弹窗。
  * 卡片只有 736px 宽，51 列放不下，必然出现横向滚动；放大后按视口宽度把列宽均分，一屏能看全。
- * 桌面直接给一块接近视口的面板；触屏设备额外尝试全屏 + 锁定横屏，
- * 让手机竖屏也能一次看全。iOS Safari 不支持普通元素全屏、也不支持锁定方向，
- * 会退化成“横过来看”的提示，手动旋转后同样不用左右滑。
+ * 竖屏手机的屏幕宽度注定了 51 列塞不进去，所以靠 zoom-rotate（见 global.css）
+ * 直接按横屏尺寸排版再转 90°：用户把手机横过来，画面正好转正。
+ * 这条路不依赖任何浏览器 API，iOS 和国产内核同样生效。
+ * 能自动横屏的设备（Android Chrome）额外请求全屏 + 锁方向，成功时屏幕真的转过去，
+ * 媒体查询随之失效，旋转自动让位。
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Draw } from '../lib/types';
 import TrendGrid from './TrendGrid.vue';
 
 defineProps<{ draws: Draw[] }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
+/** 弹窗面板本身：全屏请求要落在它身上，指整个文档在部分内核会被直接拒绝 */
 const panel = ref<HTMLElement | null>(null);
 /** 触屏才自动横屏：桌面弹窗已经够大，全屏反而打断浏览 */
 const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 const isFullscreen = ref(false);
-const showRotateHint = ref(coarse);
 
 function close() {
   emit('close');
@@ -27,39 +29,43 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') close();
 }
 
+/**
+ * 全屏真正生效之后再锁方向：紧跟 requestFullscreen 的 Promise 调用会被直接拒绝，
+ * 所以放进 fullscreenchange 回调。锁失败也不影响使用，
+ * zoom-rotate 已经把内容按横屏排好，用户自己转过来一样看全。
+ */
+function lockLandscape() {
+  // ScreenOrientation.lock 不在 TS 标准库里，单独声明
+  const orientation = screen.orientation as ScreenOrientation & {
+    lock?: (o: 'landscape') => Promise<void>;
+  };
+  // 失败也不影响使用：zoom-rotate 已经把内容按横屏排好，用户手动转过来一样看全
+  orientation.lock?.('landscape').catch(() => {});
+}
+
 /** 用户按 ESC 或返回手势退出全屏时，一并关掉弹窗 */
 function onFullscreenChange() {
   if (document.fullscreenElement) {
     isFullscreen.value = true;
+    lockLandscape();
   } else if (isFullscreen.value) {
     close();
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('fullscreenchange', onFullscreenChange);
   if (!coarse) return;
-
-  await nextTick();
-  try {
-    await panel.value?.requestFullscreen();
-  } catch {
-    /* iOS 只允许 video 全屏，跳过 */
+  if (document.fullscreenElement) {
+    isFullscreen.value = true;
+    lockLandscape();
+    return;
   }
-  // ScreenOrientation.lock 不在 TS 标准库里，单独声明；只在真正锁定成功时才收起手动横屏提示
-  const orientation = screen.orientation as ScreenOrientation & {
-    lock?: (o: 'landscape') => Promise<void>;
-  };
-  if (orientation.lock) {
-    try {
-      await orientation.lock('landscape');
-      showRotateHint.value = false;
-    } catch {
-      /* 方向锁定被拒绝，保留提示 */
-    }
-  }
+  // onMounted 是紧跟着 click 的微任务，此刻请求仍在用户手势有效期内。
+  // 不放在 await nextTick 之后：那样会被推后一个微任务，部分浏览器会判定手势已失效。
+  panel.value?.requestFullscreen().catch(() => {});
 });
 
 onBeforeUnmount(() => {
@@ -87,7 +93,7 @@ onBeforeUnmount(() => {
       role="dialog"
       aria-modal="true"
       aria-label="最近 30 期走势图，放大查看"
-      class="flex w-full flex-col overflow-hidden bg-panel shadow-2xl"
+      class="zoom-rotate flex w-full flex-col overflow-hidden bg-panel shadow-2xl"
       :class="isFullscreen ? 'h-full max-w-none rounded-none' : 'max-h-[94vh] max-w-[1600px] rounded-xl'"
     >
       <div class="flex items-center justify-between gap-3 border-b border-line px-3 py-2">
@@ -104,13 +110,6 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <p
-        v-if="showRotateHint"
-        class="border-b border-line bg-sunken px-3 py-2 text-xs leading-5 text-muted landscape:hidden"
-      >
-        横过来看：51 列一次铺满，不用左右滑。
-      </p>
-
       <div class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-1.5">
         <TrendGrid :draws="draws" expanded />
         <p class="px-1.5 pb-1 pt-2 text-xs leading-5 text-muted">
@@ -118,5 +117,11 @@ onBeforeUnmount(() => {
         </p>
       </div>
     </div>
+
+    <p
+      class="zoom-tip pointer-events-none absolute inset-x-0 bottom-8 z-10 mx-auto hidden w-max rounded-full bg-black/75 px-4 py-2 text-center text-xs leading-5 text-white"
+    >
+      画面已按横屏排版，请把手机横过来
+    </p>
   </div>
 </template>
