@@ -18,11 +18,14 @@ import DistChart from './DistChart.vue';
 import FreqBars from './FreqBars.vue';
 import OmissionTable from './OmissionTable.vue';
 import TrendGrid from './TrendGrid.vue';
+import TrendZoom from './TrendZoom.vue';
 
 const draws = ref<Draw[]>([]);
 const windowMode = ref<WindowMode>(DEFAULT_WINDOW);
 const loading = ref(true);
 const error = ref('');
+/** 走势图放大弹窗：只在点击后渲染，关闭即销毁 */
+const zoomOpen = ref(false);
 
 onMounted(async () => {
   // ?window=30|100|all；非法值回落默认，不报错也不改 URL
@@ -255,7 +258,8 @@ const windowLabel = (w: WindowMode) => (w === 'all' ? '全部历史' : `近 ${w}
         caption="遗漏 30 期不等于“快出了”。每期独立随机，下期 6 个红球中含该号的概率仍是 6/33 ≈ 18%（蓝球 1/16 ≈ 6%）。"
       />
 
-      <TrendGrid :draws="recent30" />
+      <TrendGrid :draws="recent30" @zoom="zoomOpen = true" />
+      <TrendZoom v-if="zoomOpen" :draws="recent30" @close="zoomOpen = false" />
     </template>
   </div>
 </template>
